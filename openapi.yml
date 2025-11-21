@@ -1,0 +1,1631 @@
+openapi: 3.0.1
+info:
+  title: Nunito Backend API
+  version: "1.0.0"
+servers:
+- url: http://localhost:8080
+  description: Servidor local
+tags:
+- name: auth
+  description: Autenticación y sesiones de profesores
+- name: rooms
+  description: Creación y control de salas
+- name: students
+  description: Ingreso de estudiantes y resultados
+- name: reports
+  description: Reportes y métricas de aulas
+- name: courses
+  description: Gestión de cursos
+- name: test-suites
+  description: Gestión de conjuntos de preguntas
+- name: questions
+  description: Gestión de preguntas individuales
+- name: upload
+  description: Carga de archivos multimedia
+paths:
+  /api/courses:
+    get:
+      tags:
+      - courses
+      summary: Listar cursos del profesor
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: teacherId
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Lista de cursos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Course"
+    post:
+      tags:
+      - courses
+      summary: Crear un nuevo curso
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCourseRequest"
+      responses:
+        "201":
+          description: Curso creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+  /api/courses/{courseId}:
+    get:
+      tags:
+      - courses
+      summary: Obtener detalle de un curso
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Detalle del curso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+    patch:
+      tags:
+      - courses
+      summary: Actualizar un curso
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCourseRequest"
+      responses:
+        "200":
+          description: Curso actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+    delete:
+      tags:
+      - courses
+      summary: Eliminar un curso
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Curso eliminado
+  /api/courses/{courseId}/test-suites:
+    get:
+      tags:
+      - test-suites
+      summary: Listar conjuntos de preguntas de un curso
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Lista de conjuntos de preguntas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TestSuite"
+  /api/test-suites:
+    post:
+      tags:
+      - test-suites
+      summary: Crear un nuevo conjunto de preguntas
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTestSuiteRequest"
+      responses:
+        "201":
+          description: Conjunto creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestSuite"
+  /api/test-suites/{testSuiteId}:
+    get:
+      tags:
+      - test-suites
+      summary: Obtener detalle de un conjunto de preguntas
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: testSuiteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Detalle del conjunto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestSuite"
+    patch:
+      tags:
+      - test-suites
+      summary: Actualizar un conjunto de preguntas
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: testSuiteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTestSuiteRequest"
+      responses:
+        "200":
+          description: Conjunto actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestSuite"
+    delete:
+      tags:
+      - test-suites
+      summary: Eliminar un conjunto de preguntas
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: testSuiteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Conjunto eliminado
+  /api/test-suites/{testSuiteId}/questions:
+    get:
+      tags:
+      - questions
+      summary: Listar preguntas de un conjunto
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: testSuiteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: gameType
+        in: query
+        required: false
+        schema:
+          $ref: "#/components/schemas/GameId"
+      responses:
+        "200":
+          description: Lista de preguntas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Question"
+    post:
+      tags:
+      - questions
+      summary: Crear una nueva pregunta en un conjunto
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: testSuiteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuestionRequest"
+      responses:
+        "201":
+          description: Pregunta creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Question"
+  /api/questions/{questionId}:
+    get:
+      tags:
+      - questions
+      summary: Obtener detalle de una pregunta
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: questionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Detalle de la pregunta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Question"
+    patch:
+      tags:
+      - questions
+      summary: Actualizar una pregunta
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: questionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuestionRequest"
+      responses:
+        "200":
+          description: Pregunta actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Question"
+    delete:
+      tags:
+      - questions
+      summary: Eliminar una pregunta
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: questionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Pregunta eliminada
+  /api/upload/image:
+    post:
+      tags:
+      - upload
+      summary: Subir una imagen
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Imagen subida exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+  /api/upload/audio:
+    post:
+      tags:
+      - upload
+      summary: Subir un archivo de audio
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Audio subido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+components:
+  /api/auth/login:
+    post:
+      tags:
+      - auth
+      summary: Iniciar sesión de profesor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeacherLoginRequest"
+      responses:
+        "200":
+          description: Sesión iniciada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherAuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /api/auth/me:
+    get:
+      tags:
+      - auth
+      summary: Obtener el perfil del profesor autenticado
+      security:
+      - bearerAuth: []
+      responses:
+        "200":
+          description: Perfil del profesor autenticado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Teacher"
+  /api/teachers/{teacherId}/rooms:
+    get:
+      tags:
+      - teachers
+      summary: Listar salas creadas por un profesor
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: teacherId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        description: Filtra por estado de la sala (active, pending, finished, past)
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Salas del profesor
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomSummary"
+  /api/teachers/{teacherId}/reports:
+    get:
+      tags:
+      - reports
+      summary: Obtener reportes resumidos por sala para un profesor
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: teacherId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Reportes por sala
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomReportSummary"
+  /api/teachers/{teacherId}/metrics:
+    get:
+      tags:
+      - teachers
+      summary: Métricas rápidas del panel del profesor
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: teacherId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Métricas del panel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherMetrics"
+  /api/teachers/{teacherId}/settings:
+    get:
+      tags:
+      - teachers
+      summary: Obtener configuración personalizada de juegos del profesor
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: teacherId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Configuración guardada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherSettings"
+    put:
+      tags:
+      - teachers
+      summary: Guardar configuración personalizada de juegos del profesor
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: teacherId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      requestBody:
+      required: true
+      content:
+        application/json:
+        schema:
+          $ref: "#/components/schemas/TeacherSettings"
+      responses:
+      "200":
+        description: Configuración actualizada
+        content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/TeacherSettings"
+  /api/teachers/{teacherId}/dashboard/stats:
+    get:
+      tags:
+      - teachers
+      summary: Obtener estadísticas para el dashboard del profesor
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: teacherId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Estadísticas del dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherDashboardStats"
+  /api/teachers/{teacherId}/dashboard/recent-rooms:
+    get:
+      tags:
+      - teachers
+      summary: Obtener salas recientes del profesor
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: teacherId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Lista de salas recientes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecentRoomSummary"
+  /api/rooms:
+    get:
+      tags:
+      - rooms
+      summary: Listar salas disponibles
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: teacherId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: "#/components/schemas/RoomStatus"
+      responses:
+        "200":
+          description: Listado de salas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomSummary"
+    post:
+      tags:
+      - rooms
+      summary: Crear una nueva sala
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoomRequest"
+      responses:
+        "201":
+          description: Sala creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /api/rooms/{roomId}:
+    get:
+      tags:
+      - rooms
+      summary: Obtener detalle de una sala
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Detalle de la sala
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    patch:
+      tags:
+      - rooms
+      summary: Actualizar información de una sala
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoomRequest"
+      responses:
+        "200":
+          description: Sala actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+  /api/rooms/{roomId}/status:
+    patch:
+      tags:
+      - rooms
+      summary: Cambiar el estado de la sala (iniciar/finalizar sesión)
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomStatusUpdate"
+      responses:
+        "200":
+          description: Estado actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+  /api/rooms/code/{code}:
+    get:
+      tags:
+      - rooms
+      - students
+      summary: Obtener una sala por código para que un estudiante se conecte
+      parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Información de la sala
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+  /api/rooms/code/{code}/students:
+    post:
+      tags:
+      - students
+      summary: Unir a un estudiante a una sala usando el código
+      parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentJoinRequest"
+      responses:
+        "200":
+          description: Estudiante conectado a la sala
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentSession"
+  /api/rooms/{roomId}/students:
+    get:
+      tags:
+      - rooms
+      - students
+      summary: Listar estudiantes conectados a una sala
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Estudiantes en la sala
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudentSummary"
+    post:
+      tags:
+      - rooms
+      - students
+      summary: Agregar a un estudiante a una sala (alta manual)
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentJoinRequest"
+      responses:
+        "201":
+          description: Estudiante registrado en la sala
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentSummary"
+  /api/rooms/{roomId}/results:
+    get:
+      tags:
+      - reports
+      - rooms
+      summary: Obtener los resultados individuales de una sala
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Resultados por estudiante
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudentResult"
+    post:
+      tags:
+      - students
+      - reports
+      summary: Enviar los resultados de un estudiante
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GameResultSubmission"
+      responses:
+        "201":
+          description: Resultado guardado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentResult"
+  /api/rooms/{roomId}/report:
+    get:
+      tags:
+      - reports
+      summary: Obtener reporte agregado de una sala
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Reporte agregado de la sala
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomReport"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    GameId:
+      type: string
+      enum:
+      - image-word
+      - syllable-count
+      - rhyme-identification
+      - audio-recognition
+    Difficulty:
+      type: string
+      enum:
+      - easy
+      - medium
+      - hard
+    RoomStatus:
+      type: string
+      enum:
+      - pending
+      - active
+      - finished
+    AuthToken:
+      type: object
+      required:
+      - accessToken
+      - tokenType
+      - expiresIn
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          format: int64
+          description: Expiración del token en segundos
+    Teacher:
+      type: object
+      required:
+      - id
+      - name
+      - email
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+    TeacherRegistrationRequest:
+      type: object
+      required:
+      - name
+      - email
+      - password
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+          writeOnly: true
+    TeacherLoginRequest:
+      type: object
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          writeOnly: true
+    TeacherAuthResponse:
+      type: object
+      required:
+      - teacher
+      - token
+      properties:
+        teacher:
+          $ref: "#/components/schemas/Teacher"
+        token:
+          $ref: "#/components/schemas/AuthToken"
+    TeacherSettings:
+      type: object
+      required:
+      - availableGames
+      - defaultDifficulty
+      - questionTimeSeconds
+      - feedback
+      properties:
+        availableGames:
+          type: object
+          additionalProperties:
+            type: boolean
+          example:
+            image-word: true
+            syllable-count: true
+            rhyme-identification: false
+            audio-recognition: true
+        defaultDifficulty:
+          $ref: "#/components/schemas/Difficulty"
+        questionTimeSeconds:
+          type: integer
+          format: int32
+          minimum: 10
+        feedback:
+          type: object
+          required:
+          - sounds
+          - animations
+          - hints
+          properties:
+            sounds:
+              type: boolean
+            animations:
+              type: boolean
+            hints:
+              type: boolean
+    TeacherMetrics:
+      type: object
+      required:
+      - activeRooms
+      - connectedStudents
+      - completedActivities
+      - averageScore
+      properties:
+        activeRooms:
+          type: integer
+          format: int32
+        connectedStudents:
+          type: integer
+          format: int32
+        completedActivities:
+          type: integer
+          format: int32
+        averageScore:
+          type: number
+          format: double
+    Room:
+      type: object
+      required:
+      - id
+      - code
+      - name
+      - gameId
+      - difficulty
+      - durationMinutes
+      - isActive
+      - status
+      - teacherId
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          description: Código corto que ingresan los estudiantes
+          pattern: "^[A-Z0-9]{6}$"
+        name:
+          type: string
+        gameId:
+          $ref: "#/components/schemas/GameId"
+        difficulty:
+          $ref: "#/components/schemas/Difficulty"
+        durationMinutes:
+          type: integer
+          format: int32
+        isActive:
+          type: boolean
+        status:
+          $ref: "#/components/schemas/RoomStatus"
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        teacherId:
+          type: string
+          format: uuid
+        teacher:
+          $ref: "#/components/schemas/Teacher"
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudentSummary"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RoomSummary:
+      type: object
+      required:
+      - id
+      - code
+      - name
+      - gameId
+      - difficulty
+      - durationMinutes
+      - isActive
+      - status
+      - studentsCount
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        gameId:
+          $ref: "#/components/schemas/GameId"
+        difficulty:
+          $ref: "#/components/schemas/Difficulty"
+        durationMinutes:
+          type: integer
+          format: int32
+        isActive:
+          type: boolean
+        status:
+          $ref: "#/components/schemas/RoomStatus"
+        studentsCount:
+          type: integer
+          format: int32
+        averageScore:
+          type: number
+          format: double
+        completionRate:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+        lastActivityAt:
+          type: string
+          format: date-time
+    CreateRoomRequest:
+      type: object
+      required:
+      - teacherId
+      - name
+      - gameId
+      - difficulty
+      - durationMinutes
+      properties:
+        teacherId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        gameId:
+          $ref: "#/components/schemas/GameId"
+        difficulty:
+          $ref: "#/components/schemas/Difficulty"
+        durationMinutes:
+          type: integer
+          format: int32
+    UpdateRoomRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        gameId:
+          $ref: "#/components/schemas/GameId"
+        difficulty:
+          $ref: "#/components/schemas/Difficulty"
+        durationMinutes:
+          type: integer
+          format: int32
+        isActive:
+          type: boolean
+    RoomStatusUpdate:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          $ref: "#/components/schemas/RoomStatus"
+        isActive:
+          type: boolean
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+    StudentSummary:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+    StudentJoinRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+    StudentSession:
+      type: object
+      required:
+      - room
+      - student
+      properties:
+        room:
+          $ref: "#/components/schemas/Room"
+        student:
+          $ref: "#/components/schemas/StudentSummary"
+        sessionToken:
+          type: string
+          description: Token opcional para identificar la sesión del estudiante
+    GameResultSubmission:
+      type: object
+      required:
+      - studentName
+      - gameId
+      - totalQuestions
+      - correctAnswers
+      - incorrectAnswers
+      - averageTimeSeconds
+      - score
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        studentName:
+          type: string
+        roomId:
+          type: string
+          format: uuid
+        gameId:
+          $ref: "#/components/schemas/GameId"
+        totalQuestions:
+          type: integer
+          format: int32
+        correctAnswers:
+          type: integer
+          format: int32
+        incorrectAnswers:
+          type: integer
+          format: int32
+        averageTimeSeconds:
+          type: number
+          format: double
+        score:
+          type: number
+          format: double
+        completedAt:
+          type: string
+          format: date-time
+    StudentResult:
+      type: object
+      required:
+      - id
+      - studentName
+      - roomId
+      - gameId
+      - totalQuestions
+      - correctAnswers
+      - incorrectAnswers
+      - averageTimeSeconds
+      - score
+      - completedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        studentName:
+          type: string
+        roomId:
+          type: string
+          format: uuid
+        gameId:
+          $ref: "#/components/schemas/GameId"
+        totalQuestions:
+          type: integer
+          format: int32
+        correctAnswers:
+          type: integer
+          format: int32
+        incorrectAnswers:
+          type: integer
+          format: int32
+        averageTimeSeconds:
+          type: number
+          format: double
+        score:
+          type: number
+          format: double
+        completedAt:
+          type: string
+          format: date-time
+    RoomReportSummary:
+      type: object
+      required:
+      - roomId
+      - roomName
+      - gameId
+      - difficulty
+      - studentsCount
+      - averageScore
+      - completionRate
+      - createdAt
+      properties:
+        roomId:
+          type: string
+          format: uuid
+        roomName:
+          type: string
+        gameId:
+          $ref: "#/components/schemas/GameId"
+        difficulty:
+          $ref: "#/components/schemas/Difficulty"
+        studentsCount:
+          type: integer
+          format: int32
+        averageScore:
+          type: number
+          format: double
+        completionRate:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+    RoomReport:
+      type: object
+      required:
+      - roomId
+      - roomName
+      - gameId
+      - difficulty
+      - studentsCount
+      - averageScore
+      - completionRate
+      - createdAt
+      - students
+      properties:
+        roomId:
+          type: string
+          format: uuid
+        roomName:
+          type: string
+        gameId:
+          $ref: "#/components/schemas/GameId"
+        difficulty:
+          $ref: "#/components/schemas/Difficulty"
+        studentsCount:
+          type: integer
+          format: int32
+        averageScore:
+          type: number
+          format: double
+        completionRate:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudentResult"
+    ValidationErrorDetail:
+      type: object
+      required:
+      - field
+      - message
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      required:
+      - status
+      - code
+      - message
+      - timestamp
+      properties:
+        status:
+          type: integer
+          format: int32
+        code:
+          type: string
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationErrorDetail"
+        path:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    Course:
+      type: object
+      required:
+      - id
+      - name
+      - teacherId
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        teacherId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateCourseRequest:
+      type: object
+      required:
+      - name
+      - teacherId
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        teacherId:
+          type: string
+          format: uuid
+    UpdateCourseRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+    TestSuite:
+      type: object
+      required:
+      - id
+      - name
+      - courseId
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        courseId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateTestSuiteRequest:
+      type: object
+      required:
+      - name
+      - courseId
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        courseId:
+          type: string
+          format: uuid
+    UpdateTestSuiteRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+    Question:
+      type: object
+      required:
+      - id
+      - text
+      - type
+      - testSuiteId
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        type:
+          $ref: "#/components/schemas/GameId"
+        options:
+          type: object
+          description: "JSON flexible con las opciones de la pregunta"
+        correctAnswer:
+          type: string
+        testSuiteId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+    CreateQuestionRequest:
+      type: object
+      required:
+      - text
+      - type
+      - testSuiteId
+      properties:
+        text:
+          type: string
+        type:
+          $ref: "#/components/schemas/GameId"
+        options:
+          type: object
+        correctAnswer:
+          type: string
+        testSuiteId:
+          type: string
+          format: uuid
+    UploadResponse:
+      type: object
+      required:
+      - url
+      - filename
+      properties:
+        url:
+          type: string
+        filename:
+          type: string
+    TeacherDashboardStats:
+      type: object
+      properties:
+        activeRoomsCount:
+          type: integer
+        connectedStudentsCount:
+          type: integer
+        completedActivitiesCount:
+          type: integer
+        averageProgress:
+          type: integer
+    RecentRoomSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        gameLabel:
+          type: string
+        difficulty:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        students:
+          type: integer
+        average:
+          type: integer
+        status:
+          type: string
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"

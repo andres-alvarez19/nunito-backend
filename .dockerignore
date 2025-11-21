@@ -1,0 +1,24 @@
+# Build artifacts
+build/
+.gradle/
+*.jar
+*.war
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Git
+.git/
+.gitignore
+
+# Uploads (se montarán como volumen)
+uploads/
+
+# Tests
+src/test/
+
+# Documentation
+*.md
+!README.md
