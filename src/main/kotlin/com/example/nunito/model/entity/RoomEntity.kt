@@ -19,15 +19,17 @@ data class RoomEntity(
     @Column(nullable = false)
     var name: String,
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "room_games", joinColumns = [JoinColumn(name = "room_id")])
+    @Column(name = "game_id", nullable = false)
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    var gameId: GameId,
+    val gameIds: MutableSet<GameId>,
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var difficulty: Difficulty,
 
-    @Column(nullable = false)
+    @Column(name = "duration", nullable = false)
     var durationMinutes: Int,
 
     @Column(nullable = false)
@@ -46,6 +48,10 @@ data class RoomEntity(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "teacher_id", nullable = false)
     val teacher: TeacherEntity,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "test_suite_id", nullable = false)
+    var testSuite: TestSuiteEntity,
 
     @ManyToMany(cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     @JoinTable(

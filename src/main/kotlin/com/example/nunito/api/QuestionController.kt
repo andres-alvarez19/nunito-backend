@@ -3,6 +3,7 @@ package com.example.nunito.api
 import com.example.nunito.model.CreateQuestionRequest
 import com.example.nunito.model.GameId
 import com.example.nunito.model.Question
+import com.example.nunito.model.UpdateQuestionRequest
 import com.example.nunito.service.QuestionService
 import jakarta.validation.Valid
 import java.util.UUID
@@ -47,7 +48,7 @@ class QuestionController(
     @PatchMapping("/questions/{questionId}")
     fun updateQuestion(
         @PathVariable questionId: UUID,
-        @Valid @RequestBody request: CreateQuestionRequest
+        @RequestBody request: UpdateQuestionRequest
     ): Question = questionService.updateQuestion(questionId, request)
 
     @DeleteMapping("/questions/{questionId}")

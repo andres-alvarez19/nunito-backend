@@ -4,18 +4,21 @@ import com.example.nunito.exception.BadRequestException
 import com.example.nunito.exception.NotFoundException
 import com.example.nunito.model.CreateRoomRequest
 import com.example.nunito.model.GameResultSubmission
+import com.example.nunito.model.GameInfo
 import com.example.nunito.model.Room
 import com.example.nunito.model.RoomReport
 import com.example.nunito.model.RoomReportSummary
 import com.example.nunito.model.RoomStatus
 import com.example.nunito.model.RoomStatusUpdate
 import com.example.nunito.model.RoomSummary
+import com.example.nunito.model.RoomLiveStatus
 import com.example.nunito.model.StudentJoinRequest
 import com.example.nunito.model.StudentResult
 import com.example.nunito.model.StudentSession
 import com.example.nunito.model.StudentSummary
 import com.example.nunito.model.Teacher
 import com.example.nunito.model.UpdateRoomRequest
+import com.example.nunito.model.UserDto
 import com.example.nunito.model.entity.GameResultEntity
 import com.example.nunito.model.entity.RoomEntity
 import com.example.nunito.model.entity.StudentEntity
@@ -23,20 +26,60 @@ import com.example.nunito.repository.GameResultRepository
 import com.example.nunito.repository.RoomRepository
 import com.example.nunito.repository.StudentRepository
 import com.example.nunito.repository.TeacherRepository
+import com.example.nunito.repository.TestSuiteRepository
+import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import org.springframework.stereotype.Service
+import org.slf4j.LoggerFactory
 import org.springframework.transaction.annotation.Transactional
+
+data class RoomState(
+    val users: MutableSet<UserDto> = ConcurrentHashMap.newKeySet(),
+    var status: RoomLiveStatus = RoomLiveStatus.WAITING
+)
 
 @Service
 class RoomService(
     private val roomRepository: RoomRepository,
     private val teacherRepository: TeacherRepository,
     private val studentRepository: StudentRepository,
-    private val gameResultRepository: GameResultRepository
+    private val gameResultRepository: GameResultRepository,
+    private val testSuiteRepository: TestSuiteRepository
 ) {
 
-    @Transactional(readOnly = true)
+    private val logger = LoggerFactory.getLogger(RoomService::class.java)
+    private val roomStates: MutableMap<String, RoomState> = ConcurrentHashMap()
+
+    fun addUserToRoom(roomId: String, user: UserDto): List<UserDto> {
+        val roomState = roomStates.computeIfAbsent(roomId) { RoomState() }
+        roomState.users.removeIf { it.userId == user.userId }
+        roomState.users.add(user)
+        return roomState.users.sortedBy { it.name }
+    }
+
+    fun removeUserFromRoom(roomId: String, user: UserDto): List<UserDto> {
+        val roomState = roomStates[roomId] ?: return emptyList()
+        roomState.users.removeIf { it.userId == user.userId }
+        return roomState.users.sortedBy { it.name }
+    }
+
+    fun getUsersInRoom(roomId: String): List<UserDto> {
+        return roomStates[roomId]?.users?.sortedBy { it.name } ?: emptyList()
+    }
+
+    fun startRoom(roomId: String): RoomLiveStatus {
+        val roomState = roomStates.computeIfAbsent(roomId) { RoomState() }
+        roomState.status = RoomLiveStatus.STARTED
+        return roomState.status
+    }
+
+    fun getRoomStatus(roomId: String): RoomLiveStatus {
+        return roomStates[roomId]?.status ?: RoomLiveStatus.WAITING
+    }
+
+    @Transactional
     fun listRooms(teacherId: UUID?, status: RoomStatus?): List<RoomSummary> {
         val rooms = if (teacherId != null && status != null) {
             roomRepository.findByTeacherIdAndStatus(teacherId, status)
@@ -47,46 +90,58 @@ class RoomService(
         } else {
             roomRepository.findAll()
         }
-        return rooms.map { toSummary(it) }
+        return rooms.map { toSummary(refreshRoomTiming(it)) }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun findRecentRooms(teacherId: UUID, limit: Int): List<RoomSummary> {
         val rooms = roomRepository.findByTeacherId(teacherId)
         return rooms.sortedByDescending { it.updatedAt ?: it.createdAt }
+            .map { refreshRoomTiming(it) }
             .take(limit)
             .map { toSummary(it) }
     }
 
     @Transactional
     fun createRoom(request: CreateRoomRequest): Room {
+        val durationMinutes = request.durationMinutes
+            ?: throw BadRequestException("El campo duration o durationMinutes es obligatorio")
+        if (request.games.isEmpty()) {
+            throw BadRequestException("Debe enviar al menos un juego")
+        }
         val teacher = teacherRepository.findById(request.teacherId)
             .orElseThrow { NotFoundException("Profesor", request.teacherId.toString()) }
+        val testSuite = testSuiteRepository.findById(request.testSuiteId)
+            .orElseThrow { NotFoundException("Conjunto de preguntas", request.testSuiteId.toString()) }
 
         val code = generateRoomCode()
         val roomEntity = RoomEntity(
             code = code,
             name = request.name,
-            gameId = request.gameId,
+            gameIds = request.games.toMutableSet(),
             difficulty = request.difficulty,
-            durationMinutes = request.durationMinutes,
+            durationMinutes = durationMinutes,
             teacher = teacher,
+            testSuite = testSuite,
             status = RoomStatus.PENDING,
         )
         val savedRoom = roomRepository.save(roomEntity)
+        logger.info("Sala creada: code=${savedRoom.code}, name=${savedRoom.name}, id=${savedRoom.id}")
         return toModel(savedRoom)
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun getRoom(roomId: UUID): Room {
         val roomEntity = roomRepository.findById(roomId)
+            .map { refreshRoomTiming(it) }
             .orElseThrow { NotFoundException("Sala", roomId.toString()) }
         return toModel(roomEntity)
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun getByCode(code: String): Room {
         val roomEntity = roomRepository.findByCode(code)
+            ?.let { refreshRoomTiming(it) }
             ?: throw NotFoundException("Sala", code)
         return toModel(roomEntity)
     }
@@ -97,15 +152,26 @@ class RoomService(
             .orElseThrow { NotFoundException("Sala", roomId.toString()) }
 
         if (request.name != null) roomEntity.name = request.name
-        if (request.gameId != null) roomEntity.gameId = request.gameId
+        if (request.gameIds != null) { // backward compatibility check
+            if (request.gameIds.isEmpty()) {
+                throw BadRequestException("Debe enviar al menos un juego")
+            }
+            roomEntity.gameIds.clear()
+            roomEntity.gameIds.addAll(request.gameIds)
+        }
         if (request.difficulty != null) roomEntity.difficulty = request.difficulty
         if (request.durationMinutes != null) roomEntity.durationMinutes = request.durationMinutes
+        if (request.testSuiteId != null) {
+            val testSuite = testSuiteRepository.findById(request.testSuiteId)
+                .orElseThrow { NotFoundException("Conjunto de preguntas", request.testSuiteId.toString()) }
+            roomEntity.testSuite = testSuite
+        }
         if (request.isActive != null) roomEntity.isActive = request.isActive
         
         roomEntity.updatedAt = Instant.now()
         
         val savedRoom = roomRepository.save(roomEntity)
-        return toModel(savedRoom)
+        return toModel(refreshRoomTiming(savedRoom))
     }
 
     @Transactional
@@ -114,14 +180,23 @@ class RoomService(
             .orElseThrow { NotFoundException("Sala", roomId.toString()) }
 
         roomEntity.status = statusUpdate.status
-        if (statusUpdate.isActive != null) roomEntity.isActive = statusUpdate.isActive
-        if (statusUpdate.startsAt != null) roomEntity.startsAt = statusUpdate.startsAt
-        if (statusUpdate.endsAt != null) roomEntity.endsAt = statusUpdate.endsAt
+        when (statusUpdate.status) {
+            RoomStatus.ACTIVE -> applyStartTiming(roomEntity, statusUpdate.startsAt, statusUpdate.endsAt)
+            RoomStatus.FINISHED -> {
+                roomEntity.isActive = false
+                roomEntity.endsAt = statusUpdate.endsAt ?: roomEntity.endsAt ?: Instant.now()
+            }
+            else -> {
+                if (statusUpdate.isActive != null) roomEntity.isActive = statusUpdate.isActive
+                if (statusUpdate.startsAt != null) roomEntity.startsAt = statusUpdate.startsAt
+                if (statusUpdate.endsAt != null) roomEntity.endsAt = statusUpdate.endsAt
+            }
+        }
         
         roomEntity.updatedAt = Instant.now()
 
         val savedRoom = roomRepository.save(roomEntity)
-        return toModel(savedRoom)
+        return toModel(refreshRoomTiming(savedRoom))
     }
 
     @Transactional(readOnly = true)
@@ -216,44 +291,90 @@ class RoomService(
         return toStudentResult(savedResult)
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun getRoomReport(roomId: UUID): RoomReport {
         val roomEntity = roomRepository.findById(roomId)
             .orElseThrow { NotFoundException("Sala", roomId.toString()) }
-        
+        val refreshedRoom = refreshRoomTiming(roomEntity)
         val results = gameResultRepository.findByRoomId(roomId)
-        val summary = calculateSummary(roomEntity, results)
+        val summary = calculateSummary(refreshedRoom, results)
 
         return RoomReport(
-            roomId = roomEntity.id,
-            roomName = roomEntity.name,
-            gameId = roomEntity.gameId,
-            difficulty = roomEntity.difficulty,
+            roomId = refreshedRoom.id,
+            roomName = refreshedRoom.name,
+            games = refreshedRoom.gameIds.map { GameInfo(it, it.label()) },
+            difficulty = refreshedRoom.difficulty,
             studentsCount = summary.studentsCount,
             averageScore = summary.averageScore ?: 0.0,
             completionRate = summary.completionRate ?: 0.0,
-            createdAt = roomEntity.createdAt,
+            createdAt = refreshedRoom.createdAt,
             students = results.map { toStudentResult(it) }
         )
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun getReportSummariesForTeacher(teacherId: UUID): List<RoomReportSummary> {
         val rooms = roomRepository.findByTeacherId(teacherId)
         return rooms.map { room ->
-            val results = gameResultRepository.findByRoomId(room.id)
-            val summary = calculateSummary(room, results)
+            val refreshedRoom = refreshRoomTiming(room)
+            val results = gameResultRepository.findByRoomId(refreshedRoom.id)
+            val summary = calculateSummary(refreshedRoom, results)
             RoomReportSummary(
-                roomId = room.id,
-                roomName = room.name,
-                gameId = room.gameId,
-                difficulty = room.difficulty,
+                roomId = refreshedRoom.id,
+                roomName = refreshedRoom.name,
+                games = refreshedRoom.gameIds.map { GameInfo(it, it.label()) },
+                difficulty = refreshedRoom.difficulty,
                 studentsCount = summary.studentsCount,
                 averageScore = summary.averageScore ?: 0.0,
                 completionRate = summary.completionRate ?: 0.0,
-                createdAt = room.createdAt
+                createdAt = refreshedRoom.createdAt
             )
         }
+    }
+
+    private fun applyStartTiming(room: RoomEntity, startsAtOverride: Instant?, endsAtOverride: Instant?) {
+        val now = Instant.now()
+        val startTime = startsAtOverride ?: room.startsAt ?: now
+        val calculatedEndsAt = startTime.plus(Duration.ofMinutes(room.durationMinutes.toLong()))
+
+        room.startsAt = startTime
+        room.endsAt = endsAtOverride ?: room.endsAt ?: calculatedEndsAt
+        room.isActive = true
+    }
+
+    private fun refreshRoomTiming(room: RoomEntity): RoomEntity {
+        val now = Instant.now()
+        var dirty = false
+
+        if (room.status == RoomStatus.ACTIVE) {
+            if (room.startsAt == null) {
+                room.startsAt = now
+                dirty = true
+            }
+            if (room.endsAt == null && room.startsAt != null) {
+                room.endsAt = room.startsAt!!.plus(Duration.ofMinutes(room.durationMinutes.toLong()))
+                dirty = true
+            }
+            if (!room.isActive) {
+                room.isActive = true
+                dirty = true
+            }
+            val endsAt = room.endsAt
+            if (endsAt != null && now.isAfter(endsAt)) {
+                room.isActive = false
+                room.status = RoomStatus.FINISHED
+                dirty = true
+            }
+        } else if (room.status == RoomStatus.FINISHED && room.isActive) {
+            room.isActive = false
+            dirty = true
+        }
+
+        if (dirty) {
+            room.updatedAt = now
+            return roomRepository.save(room)
+        }
+        return room
     }
 
     private fun toModel(entity: RoomEntity): Room {
@@ -261,11 +382,12 @@ class RoomService(
             id = entity.id,
             code = entity.code,
             name = entity.name,
-            gameId = entity.gameId,
+            games = entity.gameIds.map { GameInfo(it, it.label()) },
             difficulty = entity.difficulty,
             durationMinutes = entity.durationMinutes,
             isActive = entity.isActive,
             status = entity.status,
+            testSuiteId = entity.testSuite.id!!,
             startsAt = entity.startsAt,
             endsAt = entity.endsAt,
             teacherId = entity.teacher.id,
@@ -292,11 +414,12 @@ class RoomService(
             id = room.id,
             code = room.code,
             name = room.name,
-            gameId = room.gameId,
+            games = room.gameIds.map { GameInfo(it, it.label()) },
             difficulty = room.difficulty,
             durationMinutes = room.durationMinutes,
             isActive = room.isActive,
             status = room.status,
+            testSuiteId = room.testSuite.id!!,
             studentsCount = studentsCount,
             averageScore = avgScore,
             completionRate = completionRate,

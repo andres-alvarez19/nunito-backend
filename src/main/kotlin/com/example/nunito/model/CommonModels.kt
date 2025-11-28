@@ -9,6 +9,13 @@ enum class GameId(@get:JsonValue val value: String) {
     RHYME_IDENTIFICATION("rhyme-identification"),
     AUDIO_RECOGNITION("audio-recognition");
 
+    fun label(): String = when (this) {
+        IMAGE_WORD -> "Asociación Imagen-Palabra"
+        SYLLABLE_COUNT -> "Conteo de Sílabas"
+        RHYME_IDENTIFICATION -> "Identificación de Rimas"
+        AUDIO_RECOGNITION -> "Reconocimiento de Audio"
+    }
+
     companion object {
         @JvmStatic
         @JsonCreator

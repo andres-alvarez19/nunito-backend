@@ -54,22 +54,13 @@ class TeacherService(
             RecentRoomSummary(
                 id = room.id,
                 title = room.name,
-                gameLabel = getGameLabel(room.gameId),
+                gameLabel = room.games.firstOrNull()?.name ?: "",
                 difficulty = room.difficulty.value,
                 createdAt = room.createdAt,
                 students = room.studentsCount,
                 average = room.averageScore?.toInt() ?: 0,
                 status = room.status.value
             )
-        }
-    }
-
-    private fun getGameLabel(gameId: com.example.nunito.model.GameId): String {
-        return when (gameId) {
-            com.example.nunito.model.GameId.IMAGE_WORD -> "Asociación Imagen-Palabra"
-            com.example.nunito.model.GameId.SYLLABLE_COUNT -> "Conteo de Sílabas"
-            com.example.nunito.model.GameId.RHYME_IDENTIFICATION -> "Identificación de Rimas"
-            com.example.nunito.model.GameId.AUDIO_RECOGNITION -> "Reconocimiento de Audio"
         }
     }
 

@@ -7,6 +7,7 @@ import com.example.nunito.model.UpdateTestSuiteRequest
 import com.example.nunito.model.entity.TestSuiteEntity
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.example.nunito.repository.CourseRepository
+import com.example.nunito.repository.QuestionRepository
 import com.example.nunito.repository.TestSuiteRepository
 import java.util.UUID
 import org.springframework.stereotype.Service
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class TestSuiteService(
     private val testSuiteRepository: TestSuiteRepository,
+    private val questionRepository: QuestionRepository,
     private val courseRepository: CourseRepository
 ) {
 
@@ -67,6 +69,8 @@ class TestSuiteService(
         if (!testSuiteRepository.existsById(testSuiteId)) {
             throw NotFoundException("Conjunto de preguntas", testSuiteId.toString())
         }
+        // Remove questions first to avoid foreign key violations when deleting the suite
+        questionRepository.deleteByTestSuiteId(testSuiteId)
         testSuiteRepository.deleteById(testSuiteId)
     }
 

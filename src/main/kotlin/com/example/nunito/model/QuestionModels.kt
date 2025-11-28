@@ -25,3 +25,10 @@ data class CreateQuestionRequest(
     @field:NotNull
     val testSuiteId: UUID
 )
+
+data class UpdateQuestionRequest(
+    val text: String? = null,
+    val type: GameId? = null,
+    val options: Map<String, Any>? = null,
+    val correctAnswer: String? = null
+)

@@ -10,4 +10,5 @@ import org.springframework.stereotype.Repository
 interface QuestionRepository : JpaRepository<QuestionEntity, UUID> {
     fun findByTestSuiteId(testSuiteId: UUID): List<QuestionEntity>
     fun findByTestSuiteIdAndType(testSuiteId: UUID, type: GameId): List<QuestionEntity>
+    fun deleteByTestSuiteId(testSuiteId: UUID)
 }

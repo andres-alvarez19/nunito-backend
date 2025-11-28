@@ -4,6 +4,7 @@ import com.example.nunito.exception.NotFoundException
 import com.example.nunito.model.CreateQuestionRequest
 import com.example.nunito.model.GameId
 import com.example.nunito.model.Question
+import com.example.nunito.model.UpdateQuestionRequest
 import com.example.nunito.model.entity.QuestionEntity
 import com.example.nunito.repository.QuestionRepository
 import com.example.nunito.repository.TestSuiteRepository
@@ -34,7 +35,8 @@ class QuestionService(
         val testSuite = testSuiteRepository.findById(request.testSuiteId)
             .orElseThrow { NotFoundException("Conjunto de preguntas", request.testSuiteId.toString()) }
 
-        val optionsJson = request.options?.let { objectMapper.writeValueAsString(it) }
+        val normalizedOptions = normalizeOptions(request.type, request.options)
+        val optionsJson = normalizedOptions?.let { objectMapper.writeValueAsString(it) }
 
         val entity = QuestionEntity(
             text = request.text,
@@ -54,14 +56,18 @@ class QuestionService(
     }
 
     @Transactional
-    fun updateQuestion(questionId: UUID, request: CreateQuestionRequest): Question {
+    fun updateQuestion(questionId: UUID, request: UpdateQuestionRequest): Question {
         val entity = questionRepository.findById(questionId)
             .orElseThrow { NotFoundException("Pregunta", questionId.toString()) }
 
-        entity.text = request.text
-        entity.type = request.type
-        entity.options = request.options?.let { objectMapper.writeValueAsString(it) }
-        entity.correctAnswer = request.correctAnswer
+        request.text?.let { entity.text = it }
+        val effectiveType = request.type ?: entity.type
+        entity.type = effectiveType
+        request.options?.let { options ->
+            val normalizedOptions = normalizeOptions(effectiveType, options)
+            entity.options = normalizedOptions?.let { objectMapper.writeValueAsString(it) }
+        }
+        request.correctAnswer?.let { entity.correctAnswer = it }
 
         return toModel(questionRepository.save(entity))
     }
@@ -75,13 +81,14 @@ class QuestionService(
     }
 
     private fun toModel(entity: QuestionEntity): Question {
-        val optionsMap = entity.options?.let {
+        val rawOptions = entity.options?.let {
             try {
                 objectMapper.readValue(it, Map::class.java) as Map<String, Any>
             } catch (e: Exception) {
                 null
             }
         }
+        val optionsMap = normalizeOptions(entity.type, rawOptions)
 
         return Question(
             id = entity.id!!,
@@ -93,4 +100,16 @@ class QuestionService(
             createdAt = entity.createdAt
         )
     }
+
+    private fun normalizeOptions(type: GameId, options: Map<String, Any>?): Map<String, Any>? =
+        when (type) {
+            GameId.RHYME_IDENTIFICATION -> {
+                val normalizedOptions = options?.toMutableMap() ?: mutableMapOf()
+                val rhymingWords = (normalizedOptions["rhymingWords"] as? Collection<*>)?.filterIsInstance<String>()
+                    ?: emptyList()
+                normalizedOptions["rhymingWords"] = rhymingWords
+                normalizedOptions
+            }
+            else -> options
+        }
 }

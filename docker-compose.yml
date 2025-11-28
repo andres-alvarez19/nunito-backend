@@ -5,9 +5,9 @@ services:
     image: postgres:16-alpine
     container_name: nunito-postgres
     environment:
-      POSTGRES_DB: nunito
-      POSTGRES_USER: nunito
-      POSTGRES_PASSWORD: nunito123
+      POSTGRES_DB: mydb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
@@ -21,9 +21,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/nunito
-      SPRING_DATASOURCE_USERNAME: nunito
-      SPRING_DATASOURCE_PASSWORD: nunito123
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mydb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
     volumes:

@@ -6,6 +6,7 @@ import com.example.nunito.model.ErrorResponse
 import com.example.nunito.model.ValidationErrorDetail
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
@@ -57,6 +58,13 @@ class GlobalExceptionHandler {
     )
     fun handleBadRequest(exception: Exception, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
         val wrapped = BadRequestException(exception.message ?: "Petición inválida")
+        return handleApiException(wrapped, request)
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException::class)
+    fun handleDataIntegrity(exception: DataIntegrityViolationException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        val rootMessage = exception.rootCause?.message ?: exception.message ?: "Error de integridad de datos"
+        val wrapped = BadRequestException(rootMessage)
         return handleApiException(wrapped, request)
     }
 

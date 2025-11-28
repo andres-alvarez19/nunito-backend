@@ -1,5 +1,6 @@
 package com.example.nunito.model
 
+import com.fasterxml.jackson.annotation.JsonAlias
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
@@ -17,6 +18,7 @@ data class StudentSummary(
 
 data class StudentJoinRequest(
     @field:NotBlank
+    @JsonAlias("studentName")
     val name: String,
     @field:Email
     val email: String? = null

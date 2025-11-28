@@ -1051,7 +1051,7 @@ components:
       - id
       - code
       - name
-      - gameId
+      - games
       - difficulty
       - durationMinutes
       - isActive
@@ -1068,8 +1068,10 @@ components:
           pattern: "^[A-Z0-9]{6}$"
         name:
           type: string
-        gameId:
-          $ref: "#/components/schemas/GameId"
+        games:
+          type: array
+          items:
+            $ref: "#/components/schemas/GameInfo"
         difficulty:
           $ref: "#/components/schemas/Difficulty"
         durationMinutes:
@@ -1106,7 +1108,7 @@ components:
       - id
       - code
       - name
-      - gameId
+      - games
       - difficulty
       - durationMinutes
       - isActive
@@ -1121,8 +1123,10 @@ components:
           type: string
         name:
           type: string
-        gameId:
-          $ref: "#/components/schemas/GameId"
+        games:
+          type: array
+          items:
+            $ref: "#/components/schemas/GameInfo"
         difficulty:
           $ref: "#/components/schemas/Difficulty"
         durationMinutes:
@@ -1152,7 +1156,7 @@ components:
       required:
       - teacherId
       - name
-      - gameId
+      - games
       - difficulty
       - durationMinutes
       properties:
@@ -1161,8 +1165,10 @@ components:
           format: uuid
         name:
           type: string
-        gameId:
-          $ref: "#/components/schemas/GameId"
+        games:
+          type: array
+          items:
+            $ref: "#/components/schemas/GameId"
         difficulty:
           $ref: "#/components/schemas/Difficulty"
         durationMinutes:
@@ -1173,8 +1179,10 @@ components:
       properties:
         name:
           type: string
-        gameId:
-          $ref: "#/components/schemas/GameId"
+        gameIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/GameId"
         difficulty:
           $ref: "#/components/schemas/Difficulty"
         durationMinutes:
@@ -1197,6 +1205,16 @@ components:
         endsAt:
           type: string
           format: date-time
+    GameInfo:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          $ref: "#/components/schemas/GameId"
+        name:
+          type: string
     StudentSummary:
       type: object
       required:
@@ -1323,7 +1341,7 @@ components:
       required:
       - roomId
       - roomName
-      - gameId
+      - games
       - difficulty
       - studentsCount
       - averageScore
@@ -1335,8 +1353,10 @@ components:
           format: uuid
         roomName:
           type: string
-        gameId:
-          $ref: "#/components/schemas/GameId"
+        games:
+          type: array
+          items:
+            $ref: "#/components/schemas/GameInfo"
         difficulty:
           $ref: "#/components/schemas/Difficulty"
         studentsCount:
@@ -1356,7 +1376,7 @@ components:
       required:
       - roomId
       - roomName
-      - gameId
+      - games
       - difficulty
       - studentsCount
       - averageScore
@@ -1369,8 +1389,10 @@ components:
           format: uuid
         roomName:
           type: string
-        gameId:
-          $ref: "#/components/schemas/GameId"
+        games:
+          type: array
+          items:
+            $ref: "#/components/schemas/GameInfo"
         difficulty:
           $ref: "#/components/schemas/Difficulty"
         studentsCount:

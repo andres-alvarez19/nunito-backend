@@ -6,7 +6,7 @@ import java.util.UUID
 data class RoomReportSummary(
     val roomId: UUID,
     val roomName: String,
-    val gameId: GameId,
+    val games: List<GameInfo>,
     val difficulty: Difficulty,
     val studentsCount: Int,
     val averageScore: Double,
@@ -17,7 +17,7 @@ data class RoomReportSummary(
 data class RoomReport(
     val roomId: UUID,
     val roomName: String,
-    val gameId: GameId,
+    val games: List<GameInfo>,
     val difficulty: Difficulty,
     val studentsCount: Int,
     val averageScore: Double,
