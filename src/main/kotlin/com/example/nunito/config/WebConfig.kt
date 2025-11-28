@@ -10,13 +10,8 @@ class WebConfig : WebMvcConfigurer {
 
     override fun addCorsMappings(registry: CorsRegistry) {
         registry.addMapping("/**")
-            .allowedOrigins(
-                "http://localhost:8081",
-                "http://127.0.0.1:8081",
-                "http://localhost:3000", // React/Next.js default
-                "http://localhost:5173"  // Vite default
-            )
-            .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
+            .allowedOriginPatterns("*")
+            .allowedMethods("*")
             .allowedHeaders("*")
             .allowCredentials(true)
             .maxAge(3600)
