@@ -25,3 +25,8 @@ data class RoomReport(
     val createdAt: Instant,
     val students: List<StudentResult>
 )
+
+data class RoomFullResults(
+    val roomId: UUID,
+    val students: List<StudentResult>
+)

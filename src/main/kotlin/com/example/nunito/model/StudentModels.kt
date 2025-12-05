@@ -59,5 +59,6 @@ data class StudentResult(
     val incorrectAnswers: Int,
     val averageTimeSeconds: Double,
     val score: Double,
-    val completedAt: Instant
+    val completedAt: Instant,
+    val answers: List<AnswerRecord> = emptyList()
 )

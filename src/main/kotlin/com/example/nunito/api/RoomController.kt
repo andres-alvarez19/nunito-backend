@@ -3,6 +3,7 @@ package com.example.nunito.api
 import com.example.nunito.model.CreateRoomRequest
 import com.example.nunito.model.GameResultSubmission
 import com.example.nunito.model.Room
+import com.example.nunito.model.RoomFullResults
 import com.example.nunito.model.RoomReport
 import com.example.nunito.model.RoomStatus
 import com.example.nunito.model.RoomStatusUpdate
@@ -93,4 +94,8 @@ class RoomController(
     @GetMapping("/{roomId}/report")
     fun getReport(@PathVariable roomId: UUID): RoomReport =
         roomService.getRoomReport(roomId)
+
+    @GetMapping("/{roomId}/results/full")
+    fun getResultsWithAnswers(@PathVariable roomId: UUID): RoomFullResults =
+        roomService.getResultsWithAnswers(roomId)
 }

@@ -868,6 +868,64 @@ components:
             application/json:
               schema:
                 $ref: "#/components/schemas/StudentResult"
+  /api/rooms/{roomId}/answers:
+    post:
+      tags:
+      - rooms
+      - students
+      summary: Registrar la respuesta de una pregunta en tiempo real
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerSubmission"
+      responses:
+        "201":
+          description: Respuesta guardada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerRecord"
+    get:
+      tags:
+      - rooms
+      - students
+      summary: Listar respuestas persistidas de una sala
+      parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: studentId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: questionId
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Respuestas de la sala
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnswerRecord"
   /api/rooms/{roomId}/report:
     get:
       tags:
@@ -1336,6 +1394,78 @@ components:
         completedAt:
           type: string
           format: date-time
+    AnswerSubmission:
+      type: object
+      required:
+      - studentId
+      - questionId
+      - answer
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        questionId:
+          type: string
+        answer:
+          type: string
+        isCorrect:
+          type: boolean
+        elapsedMs:
+          type: integer
+          format: int64
+        attempt:
+          type: integer
+          format: int32
+          default: 1
+          minimum: 1
+        sentAt:
+          type: string
+          format: date-time
+        replace:
+          type: boolean
+          description: Si es true, permite sobreescribir la respuesta existente para la misma clave idempotente
+          default: false
+    AnswerRecord:
+      type: object
+      required:
+      - id
+      - roomId
+      - studentId
+      - questionId
+      - answer
+      - attempt
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        roomId:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        questionId:
+          type: string
+        answer:
+          type: string
+        isCorrect:
+          type: boolean
+          nullable: true
+        elapsedMs:
+          type: integer
+          format: int64
+          nullable: true
+        attempt:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        sentAt:
+          type: string
+          format: date-time
+          nullable: true
     RoomReportSummary:
       type: object
       required:

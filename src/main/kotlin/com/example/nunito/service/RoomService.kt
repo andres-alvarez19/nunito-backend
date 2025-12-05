@@ -3,6 +3,7 @@ package com.example.nunito.service
 import com.example.nunito.exception.BadRequestException
 import com.example.nunito.exception.NotFoundException
 import com.example.nunito.model.CreateRoomRequest
+import com.example.nunito.model.GameId
 import com.example.nunito.model.GameResultSubmission
 import com.example.nunito.model.GameInfo
 import com.example.nunito.model.Room
@@ -17,11 +18,14 @@ import com.example.nunito.model.StudentResult
 import com.example.nunito.model.StudentSession
 import com.example.nunito.model.StudentSummary
 import com.example.nunito.model.Teacher
+import com.example.nunito.model.RoomFullResults
 import com.example.nunito.model.UpdateRoomRequest
 import com.example.nunito.model.UserDto
+import com.example.nunito.model.AnswerRecord
 import com.example.nunito.model.entity.GameResultEntity
 import com.example.nunito.model.entity.RoomEntity
 import com.example.nunito.model.entity.StudentEntity
+import com.example.nunito.repository.GameAnswerRepository
 import com.example.nunito.repository.GameResultRepository
 import com.example.nunito.repository.RoomRepository
 import com.example.nunito.repository.StudentRepository
@@ -46,6 +50,7 @@ class RoomService(
     private val teacherRepository: TeacherRepository,
     private val studentRepository: StudentRepository,
     private val gameResultRepository: GameResultRepository,
+    private val gameAnswerRepository: GameAnswerRepository,
     private val testSuiteRepository: TestSuiteRepository
 ) {
 
@@ -248,13 +253,34 @@ class RoomService(
         return StudentSession(room = room, student = studentSummary, sessionToken = sessionToken)
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun listResults(roomId: UUID): List<StudentResult> {
         if (!roomRepository.existsById(roomId)) {
             throw NotFoundException("Sala", roomId.toString())
         }
+        backfillResultsFromAnswers(roomId)
+        val answersByKey = answersByStudentAndGame(roomId)
         val results = gameResultRepository.findByRoomId(roomId)
-        return results.map { toStudentResult(it) }
+        return results.map {
+            val key = Pair(it.student.id, it.gameId)
+            val answers = answersByKey[key] ?: emptyList()
+            toStudentResult(it, answers)
+        }
+    }
+
+    @Transactional
+    fun getResultsWithAnswers(roomId: UUID): RoomFullResults {
+        if (!roomRepository.existsById(roomId)) {
+            throw NotFoundException("Sala", roomId.toString())
+        }
+        backfillResultsFromAnswers(roomId)
+        val answersByKey = answersByStudentAndGame(roomId)
+        val results = gameResultRepository.findByRoomId(roomId)
+        val students = results.map {
+            val key = Pair(it.student.id, it.gameId)
+            toStudentResult(it, answersByKey[key] ?: emptyList())
+        }
+        return RoomFullResults(roomId = roomId, students = students)
     }
 
     @Transactional
@@ -296,7 +322,13 @@ class RoomService(
         val roomEntity = roomRepository.findById(roomId)
             .orElseThrow { NotFoundException("Sala", roomId.toString()) }
         val refreshedRoom = refreshRoomTiming(roomEntity)
+        backfillResultsFromAnswers(refreshedRoom.id)
+        val answersByKey = answersByStudentAndGame(roomId)
         val results = gameResultRepository.findByRoomId(roomId)
+        val resultsWithAnswers = results.map {
+            val key = Pair(it.student.id, it.gameId)
+            toStudentResult(it, answersByKey[key] ?: emptyList())
+        }
         val summary = calculateSummary(refreshedRoom, results)
 
         return RoomReport(
@@ -308,7 +340,7 @@ class RoomService(
             averageScore = summary.averageScore ?: 0.0,
             completionRate = summary.completionRate ?: 0.0,
             createdAt = refreshedRoom.createdAt,
-            students = results.map { toStudentResult(it) }
+            students = resultsWithAnswers
         )
     }
 
@@ -428,7 +460,83 @@ class RoomService(
         )
     }
 
+    @Transactional(readOnly = true)
+    private fun answersByStudentAndGame(roomId: UUID): Map<Pair<UUID, GameId>, List<AnswerRecord>> {
+        val answers = gameAnswerRepository.findByRoomId(roomId)
+            .filter { it.gameId != null }
+        return answers.groupBy { Pair(it.student.id, it.gameId!!) }
+            .mapValues { entry ->
+                entry.value
+                    .sortedWith(compareBy<com.example.nunito.model.entity.GameAnswerEntity> { it.createdAt }.thenBy { it.attempt })
+                    .map { toAnswerRecord(it) }
+            }
+    }
+
+    private fun toAnswerRecord(entity: com.example.nunito.model.entity.GameAnswerEntity): AnswerRecord {
+        return AnswerRecord(
+            id = entity.id!!,
+            roomId = entity.room.id,
+            studentId = entity.student.id,
+            gameId = entity.gameId,
+            questionId = entity.questionId,
+            questionText = entity.questionText,
+            answer = entity.answer,
+            isCorrect = entity.isCorrect,
+            elapsedMs = entity.elapsedMs,
+            attempt = entity.attempt,
+            createdAt = entity.createdAt,
+            sentAt = entity.sentAt
+        )
+    }
+
+    @Transactional
+    protected fun backfillResultsFromAnswers(roomId: UUID) {
+        val room = roomRepository.findById(roomId).orElse(null) ?: return
+        val existingResults = gameResultRepository.findByRoomId(roomId)
+        val existingKeys = existingResults.associateBy { Pair(it.student.id, it.gameId) }
+
+        val answers = gameAnswerRepository.findByRoomId(roomId)
+            .filter { it.gameId != null }
+        if (answers.isEmpty()) return
+
+        val grouped = answers.groupBy { Pair(it.student.id, it.gameId!!) }
+        grouped.forEach { (key, studentAnswers) ->
+            if (existingKeys.containsKey(key)) return@forEach
+            val (studentId, gameId) = key
+            val student = studentRepository.findById(studentId).orElse(null) ?: return@forEach
+            val totalQuestions = studentAnswers.map { it.questionId }.distinct().size
+            val correctAnswers = studentAnswers.count { it.isCorrect == true }
+            val incorrectAnswers = (totalQuestions - correctAnswers).coerceAtLeast(0)
+            val avgTimeSeconds = studentAnswers.mapNotNull { it.elapsedMs }
+                .takeIf { it.isNotEmpty() }
+                ?.average()
+                ?.div(1000.0)
+                ?: 0.0
+            val score = if (totalQuestions > 0) {
+                (correctAnswers.toDouble() / totalQuestions.toDouble()) * 100.0
+            } else 0.0
+            val completedAt = studentAnswers.maxOfOrNull { it.sentAt ?: it.createdAt } ?: Instant.now()
+
+            val result = GameResultEntity(
+                student = student,
+                room = room,
+                gameId = gameId,
+                totalQuestions = totalQuestions,
+                correctAnswers = correctAnswers,
+                incorrectAnswers = incorrectAnswers,
+                averageTimeSeconds = avgTimeSeconds,
+                score = score,
+                completedAt = completedAt
+            )
+            gameResultRepository.save(result)
+        }
+    }
+
     private fun toStudentResult(entity: GameResultEntity): StudentResult {
+        return toStudentResult(entity, emptyList())
+    }
+
+    private fun toStudentResult(entity: GameResultEntity, answers: List<AnswerRecord>): StudentResult {
         return StudentResult(
             id = entity.id,
             studentId = entity.student.id,
@@ -440,7 +548,8 @@ class RoomService(
             incorrectAnswers = entity.incorrectAnswers,
             averageTimeSeconds = entity.averageTimeSeconds,
             score = entity.score,
-            completedAt = entity.completedAt
+            completedAt = entity.completedAt,
+            answers = answers
         )
     }
 
